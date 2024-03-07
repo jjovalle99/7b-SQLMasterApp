@@ -1,2 +1,2 @@
 pretty_app:
-	black app.py && isort app.py
+	black app.py deploy.py && isort app.py deploy.py

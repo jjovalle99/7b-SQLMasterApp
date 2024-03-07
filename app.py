@@ -1,21 +1,24 @@
-import asyncio
-
 from dotenv import load_dotenv
 
 load_dotenv()
 import os
-from operator import itemgetter
 
 import pandas as pd
 import streamlit as st
 from langchain.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import ChatOpenAI
+from llama_index.llms.sagemaker_endpoint import SageMakerLLM
 from pandasql import sqldf
 
+generation_args = {
+    "max_new_tokens": 100,
+    "do_sample": True,
+    "temperature": 0.3,
+    "top_k": 500,
+    "top_p": 0.90,
+}
 template = """You are a powerful text-to-SQL model. Your job is to answer questions about a database. You are given a question and context regarding one or more tables.
 
-You must output the SQL query that answers the question. You must put double quotes around the column names but not around the table name.
+You must output the SQL query that answers the question.
 
 ### Input:
 `{question}`
@@ -26,19 +29,16 @@ You must output the SQL query that answers the question. You must put double quo
 ### Response:
 """
 prompt = PromptTemplate.from_template(template=template)
-llm = ChatOpenAI(
-    model="gpt-4-0125-preview",
-    temperature=0.3,
-)
-chain = (
-    {"context": itemgetter("context"), "question": itemgetter("question")}
-    | prompt
-    | llm
-    | StrOutputParser()
+llm = SageMakerLLM(
+    endpoint_name=os.getenv("SAGEMAKER_ENDPOINT_NAME"),
+    model_kwargs=generation_args,
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=os.getenv("AWS_REGION_NAME"),
 )
 
 
-async def main():
+def main():
     st.set_page_config(page_title="7BSQL Master", page_icon="📊", layout="wide")
     st.title("7BSQL Master")
 
@@ -48,10 +48,11 @@ async def main():
         uploaded_file = st.file_uploader("Upload a CSV file", type="csv")
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file, encoding="latin1")
+            df.columns = df.columns.str.replace(r"[^a-zA-Z0-9_]", "", regex=True)
             st.write("Here's a preview of your uploaded file:")
             st.write(df.head())
 
-            context = pd.io.sql.get_schema(df.reset_index(), "df")
+            context = pd.io.sql.get_schema(df.reset_index(), "df").replace('"', "")
             st.write("SQL Schema:")
             st.code(context)
 
@@ -61,15 +62,18 @@ async def main():
 
             if st.button("Get Answer", key="get_answer"):
                 if question:
-                    output = {"context": context, "question": question}
-                    stream = chain.astream(output)
+                    input = {"context": context, "question": question}
+                    formatted_prompt = prompt.invoke(input=input).text
+                    print(formatted_prompt)
+                    stream = llm.stream_complete(formatted_prompt, formatted=False)
                     response_placeholder = st.empty()
                     response = ""
-                    async for token in stream:
-                        response += token
+                    print("Done")
+                    for r in stream:
+                        response += r.delta
                         response_placeholder.code(response)
-
-                    final = response.replace("```", "").replace("sql", "").strip()
+                    final = response.replace("`", "").replace("sql", "").strip()
+                    print(final)
                     st.write("Answer:")
                     try:
                         result = sqldf(final, locals())
@@ -81,4 +85,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
