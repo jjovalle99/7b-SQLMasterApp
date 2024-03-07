@@ -41,7 +41,14 @@ llm = SageMakerLLM(
 
 def main():
     st.set_page_config(page_title="7BSQL Master", page_icon="📊", layout="wide")
-    st.title("7BSQL Master")
+    st.title("7BSQL Master - Mistral")
+    st.markdown("""
+    Welcome to the **7BSQL Master**, your intelligent assistant for transforming natural language questions into precise SQL queries. This tool is energized by the [finetuned Mistral7B](https://github.com/jjovalle99/7b-SQLMaster-FineTune.git), designed to unravel the complexities of your data with ease.
+
+    Simply upload a CSV file, and let curiosity guide your inquiries. Whether you're exploring data patterns or seeking specific insights, **7BSQL Master** stands ready to translate your questions into actionable SQL queries.
+
+    Curious about the technology behind the scenes? Discover more about the fine-tuning process and the minds behind this project by [clicking here](https://github.com/jjovalle99/7b-SQLMaster-FineTune.git).
+    """)
 
     col1, col2 = st.columns([2, 3])
 
