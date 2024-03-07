@@ -9,6 +9,7 @@ from langchain.prompts import PromptTemplate
 from llama_index.llms.sagemaker_endpoint import SageMakerLLM
 from pandasql import sqldf
 
+
 generation_args = {
     "max_new_tokens": 100,
     "do_sample": True,
@@ -34,7 +35,7 @@ llm = SageMakerLLM(
     model_kwargs=generation_args,
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-    region_name=os.getenv("AWS_REGION_NAME"),
+    region_name=os.getenv("AWS_REGION_NAME")
 )
 
 
@@ -62,21 +63,36 @@ def main():
 
             if st.button("Get Answer", key="get_answer"):
                 if question:
-                    input = {"context": context, "question": question}
-                    formatted_prompt = prompt.invoke(input=input).text
-                    stream = llm.stream_complete(formatted_prompt, formatted=False)
-                    response_placeholder = st.empty()
-                    response = ""
-                    for r in stream:
-                        response += r.delta
-                        response_placeholder.code(response)
-                    final = response.replace("`", "").replace("sql", "").strip()
-                    st.write("Answer:")
-                    try:
-                        result = sqldf(final, locals())
-                        st.write(result)
-                    except Exception as e:
-                        st.error(f"Error executing the SQL query: {str(e)}")
+                    attempt = 0
+                    max_attempts = 5
+                    while attempt < max_attempts:
+                        try:
+                            input = {"context": context, "question": question}
+                            formatted_prompt = prompt.invoke(input=input).text
+                            stream = llm.stream_complete(
+                                formatted_prompt, formatted=False
+                            )
+                            response_placeholder = st.empty()
+                            response = ""
+                            for r in stream:
+                                response += r.delta
+                                response_placeholder.code(response)
+                            final = response.replace("`", "").replace("sql", "").strip()
+                            result = sqldf(final, locals())
+                            st.write("Answer:")
+                            st.write(result)
+                            break
+                        except Exception as e:
+                            attempt += 1
+                            st.error(
+                                f"Attempt {attempt}/{max_attempts} failed. Retrying..."
+                            )
+                            if attempt == max_attempts:
+                                st.error(
+                                    "Unable to get the correct query, refresh app or try again later."
+                                )
+                            continue
+
                 else:
                     st.warning("Please enter a question before clicking 'Get Answer'.")
 
