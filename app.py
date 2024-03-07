@@ -64,16 +64,13 @@ def main():
                 if question:
                     input = {"context": context, "question": question}
                     formatted_prompt = prompt.invoke(input=input).text
-                    print(formatted_prompt)
                     stream = llm.stream_complete(formatted_prompt, formatted=False)
                     response_placeholder = st.empty()
                     response = ""
-                    print("Done")
                     for r in stream:
                         response += r.delta
                         response_placeholder.code(response)
                     final = response.replace("`", "").replace("sql", "").strip()
-                    print(final)
                     st.write("Answer:")
                     try:
                         result = sqldf(final, locals())
