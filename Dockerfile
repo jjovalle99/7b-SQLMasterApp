@@ -7,7 +7,7 @@ ENV HOME=/home/sqlmaster \
 WORKDIR /app
 COPY --chown=sqlmaster ./ ./
 RUN pip install --upgrade poetry --no-cache-dir && \
-    poetry install --only main --with deploy_model --no-root --no-cache --no-interaction \
+    poetry install --with main --with deploy_model --no-root --no-cache --no-interaction \
     --no-ansi --no-cache
 EXPOSE 7860
 CMD ["poetry", "run", "streamlit", "run", "app.py", "--server.port", "7860"]
