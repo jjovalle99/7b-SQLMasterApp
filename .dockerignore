@@ -1,0 +1,8 @@
+.venv/
+.env
+.gitignore
+.python-version
+Makefile
+.git/
+notebooks/
+deploy.py
